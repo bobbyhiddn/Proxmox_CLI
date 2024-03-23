@@ -28,20 +28,30 @@ def vm_kill(ctx, vm_ids):
                 f"echo 'Destroying VM {vm_id}...' && qm destroy {vm_id} && sleep 2",
             ]
 
+            error_occurred = False
             for command in commands:
                 _, stdout, stderr = ssh.exec_command(command)
                 click.echo(stdout.read().decode('utf-8'))
                 error = stderr.read().decode('utf-8')
                 if error:
-                    # Ask if the user wants to clean logs upon error
-                    cleanup_logs = click.confirm(f"Error executing command '{command}': {error}. Do you want to clean up logs for this VM?")
-                    if cleanup_logs:
-                        ssh.exec_command(f"cp /var/log/pve/tasks/active /var/log/pve/tasks/active.backup && sed -i '/:qm[^:]*:{vm_id}:/d' /var/log/pve/tasks/active && echo 'Log cleanup for VM {vm_id} completed.'")
-                    else:
-                        click.echo(f"Log cleanup for VM {vm_id} was not performed.")
-                    raise Exception(f"Error executing command '{command}': {error}")
+                    error_occurred = True
+                    click.echo(f"Error executing command '{command}': {error}")
 
-            click.echo(f"VM {vm_id} has been removed.")
+            # Ask if the user wants to clean logs regardless of errors
+            cleanup_logs = click.confirm("Do you want to clean up logs for this VM?")
+            if cleanup_logs:
+                _, stdout, stderr = ssh.exec_command(f"cp /var/log/pve/tasks/active /var/log/pve/tasks/active.backup && sed -i '/:qm[^:]*:{vm_id}:/d' /var/log/pve/tasks/active && echo 'Log cleanup for VM {vm_id} completed.'")
+                click.echo(stdout.read().decode('utf-8'))
+                error = stderr.read().decode('utf-8')
+                if error:
+                    click.echo(f"Error during log cleanup for VM {vm_id}: {error}")
+            else:
+                click.echo(f"Log cleanup for VM {vm_id} was not performed.")
+
+            if error_occurred:
+                click.echo(f"VM {vm_id} processing completed with errors.")
+            else:
+                click.echo(f"VM {vm_id} has been processed successfully.")
 
     except paramiko.AuthenticationException:
         click.echo("Authentication failed, please verify your credentials.")
