@@ -10,10 +10,12 @@ setup(
         'requests',
         'paramiko',
     ],
-    entry_points='''
-        [console_scripts]
-        pxmx=pxmx.cli:cli
-    ''',
+    entry_points={
+        'console_scripts': [
+            'pxmx=pxmx_cli.pxmx:cli',  
+        ],
+    },
+
     author="Your Name",
     author_email="your_email@example.com",
     description="A CLI for Proxmox management.",

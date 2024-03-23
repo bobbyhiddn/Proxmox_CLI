@@ -1,0 +1,2 @@
+[console_scripts]
+pxmx = pxmx_cli.pxmx:cli
