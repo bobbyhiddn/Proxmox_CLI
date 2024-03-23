@@ -51,7 +51,7 @@ def vm_kill(ctx, vm_ids):
             if error_occurred:
                 click.echo(f"VM {vm_id} processing completed with errors.")
             else:
-                click.echo(f"VM {vm_id} has been processed successfully.")
+                click.echo(f"VM {vm_id} has been removed successfully.")
 
     except paramiko.AuthenticationException:
         click.echo("Authentication failed, please verify your credentials.")
