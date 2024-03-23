@@ -34,8 +34,10 @@ def cli(ctx):
     ctx.obj = ensure_config()
 
 # Dynamically load commands
+print(commands_list)  # Add this to see what's being added to cli
 for command in commands_list:
     cli.add_command(command)
+
 
 @cli.command()
 @click.pass_obj 
