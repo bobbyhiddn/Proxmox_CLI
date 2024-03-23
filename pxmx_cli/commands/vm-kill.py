@@ -41,7 +41,7 @@ def vm_kill(ctx, vm_ids):
                         click.echo(f"Log cleanup for VM {vm_id} was not performed.")
                     raise Exception(f"Error executing command '{command}': {error}")
 
-            click.echo(f"VM {vm_id} has been processed.")
+            click.echo(f"VM {vm_id} has been removed.")
 
     except paramiko.AuthenticationException:
         click.echo("Authentication failed, please verify your credentials.")
