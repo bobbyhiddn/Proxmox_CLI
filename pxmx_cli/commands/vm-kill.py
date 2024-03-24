@@ -4,10 +4,10 @@ import getpass
 
 # Define the Click command
 @click.command()
-@click.argument('vm_or_ct_ids', nargs=-1, required=True)
+@click.argument('vm_ids', nargs=-1, required=True)
 @click.pass_context
-def vm_kill(ctx, vm_or_ct_ids):
-    """Kill VM(s) or container(s) by ID and clean up logs."""
+def vm_kill(ctx, vm_ids):
+    """Kill VM(s) by ID and clean up logs."""
     config = ctx.obj
     proxmox_ip = config['proxmox_ip']
     username = 'root'
@@ -19,31 +19,20 @@ def vm_kill(ctx, vm_or_ct_ids):
     try:
         ssh.connect(proxmox_ip, username=username, password=password)
 
-        for vm_or_ct_id in vm_or_ct_ids:
-            if vm_or_ct_id.startswith('VM'):
-                vm_id = vm_or_ct_id[2:]
+        for vm_id in vm_ids:
+            vm_id = vm_id.upper()
+            if vm_id.startswith('VM'):
+                vm_id = vm_id[2:]
                 click.echo(f"Processing VM {vm_id}...")
-                stop_command = f"qm stop {vm_id}"
-                lock_file = f"/var/lock/qemu-server/lock-{vm_id}.conf"
-                config_file = f"/etc/pve/nodes/proxmox/qemu-server/{vm_id}.conf"
-                destroy_command = f"qm destroy {vm_id}"
-            elif vm_or_ct_id.startswith('CT'):
-                ct_id = vm_or_ct_id[2:]
-                click.echo(f"Processing container {ct_id}...")
-                stop_command = f"pct stop {ct_id}"
-                lock_file = f"/var/lock/lxc/{ct_id}.lock"
-                config_file = f"/etc/pve/nodes/proxmox/lxc/{ct_id}.conf"
-                destroy_command = f"pct destroy {ct_id}"
+                commands = [
+                    f"echo 'Attempting to stop VM {vm_id}...' && qm stop {vm_id} && sleep 5",
+                    f"echo 'Removing lock file for VM {vm_id}...' && rm -f /var/lock/qemu-server/lock-{vm_id}.conf",
+                    f"echo 'Removing lock status from VM {vm_id} configuration...' && sed -i '/^lock:/d' /etc/pve/nodes/proxmox/qemu-server/{vm_id}.conf",
+                    f"echo 'Destroying VM {vm_id}...' && qm destroy {vm_id} && sleep 2",
+                ]
             else:
-                click.echo(f"Invalid prefix for ID: {vm_or_ct_id}. Skipping...")
+                click.echo(f"Invalid prefix for ID: {vm_id}. Skipping...")
                 continue
-
-            commands = [
-                f"echo 'Attempting to stop {vm_or_ct_id}...' && {stop_command} && sleep 5",
-                f"echo 'Removing lock file for {vm_or_ct_id}...' && rm -f {lock_file}",
-                f"echo 'Removing lock status from {vm_or_ct_id} configuration...' && sed -i '/^lock:/d' {config_file}",
-                f"echo 'Destroying {vm_or_ct_id}...' && {destroy_command} && sleep 2",
-            ]
 
             error_occurred = False
             for command in commands:
@@ -55,20 +44,20 @@ def vm_kill(ctx, vm_or_ct_ids):
                     click.echo(f"Error executing command '{command}': {error}")
 
             # Ask if the user wants to clean logs regardless of errors
-            cleanup_logs = click.confirm(f"Do you want to clean up logs for {vm_or_ct_id}?")
+            cleanup_logs = click.confirm(f"Do you want to clean up logs for VM {vm_id}?")
             if cleanup_logs:
-                _, stdout, stderr = ssh.exec_command(f"cp /var/log/pve/tasks/active /var/log/pve/tasks/active.backup && sed -i '/:qm[^:]*:{vm_id}:/d' /var/log/pve/tasks/active && echo 'Log cleanup for {vm_or_ct_id} completed.'")
+                _, stdout, stderr = ssh.exec_command(f"cp /var/log/pve/tasks/active /var/log/pve/tasks/active.backup && sed -i '/:qm[^:]*:{vm_id}:/d' /var/log/pve/tasks/active && echo 'Log cleanup for VM {vm_id} completed.'")
                 click.echo(stdout.read().decode('utf-8'))
                 error = stderr.read().decode('utf-8')
                 if error:
-                    click.echo(f"Error during log cleanup for {vm_or_ct_id}: {error}")
+                    click.echo(f"Error during log cleanup for VM {vm_id}: {error}")
             else:
-                click.echo(f"Log cleanup for {vm_or_ct_id} was not performed.")
+                click.echo(f"Log cleanup for VM {vm_id} was not performed.")
 
             if error_occurred:
-                click.echo(f"{vm_or_ct_id} processing completed with errors.")
+                click.echo(f"VM {vm_id} processing completed with errors.")
             else:
-                click.echo(f"{vm_or_ct_id} has been removed successfully.")
+                click.echo(f"VM {vm_id} has been removed successfully.")
 
     except paramiko.AuthenticationException:
         click.echo("Authentication failed, please verify your credentials.")

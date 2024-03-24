@@ -7,6 +7,7 @@ import requests
 def vm_info(ctx, vm_id):
     """Retrieve information about a specific VM."""
     config = ctx.obj
+    vm_id = vm_id.upper()
     proxmox_ip = config['proxmox_ip']
     username = config['username']
     password = config['password']  # Assuming password is safely handled
