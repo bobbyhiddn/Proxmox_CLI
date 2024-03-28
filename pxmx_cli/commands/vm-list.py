@@ -1,6 +1,8 @@
 # commands/vm_list.py
 import click
 import requests
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 @click.command()
 @click.pass_context
